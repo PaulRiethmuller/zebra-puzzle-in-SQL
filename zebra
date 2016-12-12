@@ -1,0 +1,238 @@
+\timing
+
+-- the basic technique is to populate all the entities and
+-- possible permutations and apply positional constraints
+-- at population time.  All other constraints will be applied
+-- in the final query.
+
+-- Constraint 1
+-- all say the same thing - that each datum appears but once.
+-- By defining IDs bit-wise, the predicate that row-wise sum(id)==31 enforces this.
+
+-- define the 5 countries
+create table country(id integer, name char(7));
+insert into country values(1,'Norway');
+insert into country values(2,'Denmark');
+insert into country values(4,'England');
+insert into country values(8,'Sweden');
+insert into country values(16,'Germany');
+
+-- populate the permutation of countries.
+-- Constraint 10 -  Norway is the "first" house, i.e. at one end ? leftmost
+-- Assumption, houses are ordered from left/first to right/last
+
+create table countries (
+country1 char(7),
+country2 char(7),
+country3 char(7),
+country4 char(7),
+country5 char(7)
+);
+
+insert into countries select a.name, b.name, c.name, d.name, e.name
+from country a, country b, country c, country d, country e
+-- where (a.name='Norway' or e.name='Norway')
+where (a.name='Norway')
+  and 31 = a.id+b.id+c.id+d.id+e.id
+;
+  
+-- define the 5 colours
+create table colour (id integer, name char(7));
+insert into colour values(1,'Yellow');
+insert into colour values(2,'Blue');
+insert into colour values(4,'Red');
+insert into colour values(8,'White');
+insert into colour values(16,'Green');
+
+--  populate the permutation of colours, relying on sum(id)==31 when all different
+-- Constraint 5 -  green house is to the left of white - is applied
+create table colours (
+colour1 char(7),
+colour2 char(7),
+colour3 char(7),
+colour4 char(7),
+colour5 char(7)
+);
+
+insert into colours 
+select a.name, b.name, c.name, d.name, e.name
+from colour a, colour b, colour c, colour d, colour e
+where 31 = a.id+b.id+c.id+d.id+e.id
+  and (  (a.name = 'Green' and b.name = 'White')
+      or (b.name = 'Green' and c.name = 'White')
+      or (c.name = 'Green' and d.name = 'White')
+      or (d.name = 'Green' and e.name = 'White')
+      )
+;
+      
+
+-- define the 5 drinks
+create table drink(id integer, name char(7));
+insert into drink values(1,'Water');
+insert into drink values(2,'Tea');
+insert into drink values(4,'Milk');
+insert into drink values(8,'Beer');
+insert into drink values(16,'Coffee');
+      
+-- populate the drinks permutation
+-- Constraint 9 - milk is drunk in the middle house
+create table drinks (
+drink1 char(7),
+drink2 char(7),
+drink3 char(7),
+drink4 char(7),
+drink5 char(7)
+);
+
+insert into drinks
+select a.name, b.name, c.name, d.name, e.name
+from drink a, drink b, drink c, drink d, drink e
+where c.name = 'Milk'
+  and 31 = a.id+b.id+c.id+d.id+e.id
+;
+  
+-- define the 5 smoke brands and all possible permutations
+create table smoke (id integer, name char(7));
+insert into smoke values(1,'PalMall');
+insert into smoke values(2,'Dunhill');
+insert into smoke values(4,'Blend');
+insert into smoke values(8,'BluMstr');
+insert into smoke values(16,'Prince');
+
+create table smokes (
+smoke1 char(7),
+smoke2 char(7),
+smoke3 char(7),
+smoke4 char(7),
+smoke5 char(7)
+);
+
+insert into smokes
+select a.name, b.name, c.name, d.name, e.name
+from smoke a, smoke b, smoke c, smoke d, smoke e
+where 31 = a.id+b.id+c.id+d.id+e.id;
+
+
+-- define the 5 pets and all possible permutations
+create table pet(id integer, name char(7));
+insert into pet values(1,'Cats');
+insert into pet values(2,'Horse');
+insert into pet values(4,'Birds');
+insert into pet values(8,'Dog');
+insert into pet values(16,'Zebra');
+
+create table pets (
+pet1 char(7),
+pet2 char(7),
+pet3 char(7),
+pet4 char(7),
+pet5 char(7)
+);
+
+insert into pets
+select a.name, b.name, c.name, d.name, e.name
+from pet a, pet b, pet c, pet d, pet e
+where 31 = a.id+b.id+c.id+d.id+e.id;
+
+-- the big query
+
+select country1, colour1, drink1, smoke1, pet1,
+       country2, colour2, drink2, smoke2, pet2,
+       country3, colour3, drink3, smoke3, pet3,
+       country4, colour4, drink4, smoke4, pet4,
+       country5, colour5, drink5, smoke5, pet5
+from countries, colours, drinks, smokes, pets
+where
+-- Constraint 2 - the English lives in a Red house
+      (    (country1 = 'England' and colour1 = 'Red') 
+        or (country2 = 'England' and colour2 = 'Red')
+        or (country3 = 'England' and colour3 = 'Red')
+        or (country4 = 'England' and colour4 = 'Red')
+        or (country5 = 'England' and colour5 = 'Red') 
+      ) 
+  and
+-- Constraint 3 - the Swede has a pet Dog
+      (    (country1 = 'Sweden' and pet1 = 'Dog')
+        or (country2 = 'Sweden' and pet2 = 'Dog')
+        or (country3 = 'Sweden' and pet3 = 'Dog')
+        or (country4 = 'Sweden' and pet4 = 'Dog')
+        or (country5 = 'Sweden' and pet5 = 'Dog')
+      )
+  and
+-- Constraint 4 - the Dane drinks tea
+      (    (country1 = 'Denmark' and drink1 = 'Tea')
+        or (country2 = 'Denmark' and drink2 = 'Tea')
+        or (country3 = 'Denmark' and drink3 = 'Tea')
+        or (country4 = 'Denmark' and drink4 = 'Tea')
+        or (country5 = 'Denmark' and drink5 = 'Tea')
+      )
+  and
+-- Constraint 6 - occupant of Green house drinks coffee
+      (    (colour1 = 'Green' and drink1 = 'Coffee')
+        or (colour2 = 'Green' and drink2 = 'Coffee')
+        or (colour3 = 'Green' and drink3 = 'Coffee')
+        or (colour4 = 'Green' and drink4 = 'Coffee')
+        or (colour5 = 'Green' and drink5 = 'Coffee')
+      )
+  and
+-- Constraint 7 - Pall Mall smoker has Birds
+      (    (smoke1 = 'PalMall' and pet1 = 'Birds')
+        or (smoke2 = 'PalMall' and pet2 = 'Birds')
+        or (smoke3 = 'PalMall' and pet3 = 'Birds')
+        or (smoke4 = 'PalMall' and pet4 = 'Birds')
+        or (smoke5 = 'PalMall' and pet5 = 'Birds')
+      )
+  and
+-- Constraint 8 - occupant of Yellow house smokes Dunhill
+      (    (colour1 = 'Yellow' and smoke1 = 'Dunhill')
+        or (colour2 = 'Yellow' and smoke2 = 'Dunhill')
+        or (colour3 = 'Yellow' and smoke3 = 'Dunhill')
+        or (colour4 = 'Yellow' and smoke4 = 'Dunhill')
+        or (colour5 = 'Yellow' and smoke5 = 'Dunhill')
+      )
+  and
+-- Constraint 11 - Blend smoker beside Cat owner
+      (    (smoke1 = 'Blend' and pet2 = 'Cats')
+        or (smoke2 = 'Blend' and (pet1 = 'Cats' or pet3 = 'Cats'))
+        or (smoke3 = 'Blend' and (pet2 = 'Cats' or pet4 = 'Cats'))
+        or (smoke4 = 'Blend' and (pet3 = 'Cats' or pet5 = 'Cats'))
+        or (smoke5 = 'Blend' and pet4 = 'Cats')
+      )
+  and
+-- Constraint 12 - Dunhill smoker beside Horse owner
+      (    (smoke1 = 'Dunhill' and pet2 = 'Horse')
+        or (smoke2 = 'Dunhill' and (pet1 = 'Horse' or pet3 = 'Horse'))
+        or (smoke3 = 'Dunhill' and (pet2 = 'Horse' or pet4 = 'Horse'))
+        or (smoke4 = 'Dunhill' and (pet3 = 'Horse' or pet5 = 'Horse'))
+        or (smoke5 = 'Dunhill' and pet4 = 'Horse')
+      )
+  and
+-- Constraint 13 - Blue Master smoker drinks Beer
+      (    (smoke1 = 'BluMstr' and drink1 = 'Beer')
+        or (smoke2 = 'BluMstr' and drink2 = 'Beer')
+        or (smoke3 = 'BluMstr' and drink3 = 'Beer')
+        or (smoke4 = 'BluMstr' and drink4 = 'Beer')
+        or (smoke5 = 'BluMstr' and drink5 = 'Beer')
+      )
+  and
+-- Constraint 14 - Prince smoker is German
+      (    (smoke1 = 'Prince' and country1 = 'Germany')
+        or (smoke2 = 'Prince' and country2 = 'Germany')
+        or (smoke3 = 'Prince' and country3 = 'Germany')
+        or (smoke4 = 'Prince' and country4 = 'Germany')
+        or (smoke5 = 'Prince' and country5 = 'Germany')
+      )
+  and
+-- Constraint 15 - Norwegian lives next to Blue house
+-- also applies constraint 10 - Norwegian resides if the first/leftmost house
+      (    (country1 = 'Norway' and colour2 = 'Blue')
+      )
+and
+-- Constraint 16 - Water drinker beside Blend smoker
+      (    (smoke1 = 'Blend' and drink2 = 'Water')      
+        or (smoke2 = 'Blend' and (drink1 = 'Water' or drink3 = 'Water'))
+        or (smoke3 = 'Blend' and (drink2 = 'Water' or drink4 = 'Water'))
+        or (smoke4 = 'Blend' and (drink3 = 'Water' or drink5 = 'Water'))
+        or (smoke5 = 'Blend' and drink4 = 'Water')
+      )      
+;
